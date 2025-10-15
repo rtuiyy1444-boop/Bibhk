@@ -1,0 +1,49 @@
+from flask import Flask, request
+import requests
+import os
+
+app = Flask(__name__)
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+
+# قائمة مودات Minecraft
+mods = [
+    {"name": "🪨 OptiFine", "url": "https://example.com/optifine.jar"},
+    {"name": "🌾 JEI", "url": "https://example.com/jei.jar"},
+    {"name": "🌳 Biomes O' Plenty", "url": "https://example.com/biomesoplenty.jar"},
+    {"name": "🗺️ JourneyMap", "url": "https://example.com/journeymap.jar"}
+]
+
+def send_message(chat_id, text, reply_markup=None):
+    data = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    if reply_markup:
+        data["reply_markup"] = reply_markup
+    requests.post(f"{BASE_URL}/sendMessage", json=data)
+
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def webhook():
+    update = request.get_json()
+    
+    if "message" in update:
+        chat_id = update["message"]["chat"]["id"]
+        text = update["message"].get("text", "")
+
+        if text in ["/start", "/stars"]:
+            # إنشاء واجهة عرض المودات
+            keyboard = {
+                "inline_keyboard": [
+                    [{"text": mod["name"], "url": mod["url"]}] for mod in mods
+                ]
+            }
+            message_text = "🎮 *قائمة مودات Minecraft 1.21.113*\n\nاختر المود للتحميل:"
+            send_message(chat_id, message_text, reply_markup=keyboard)
+
+    return "OK"
+
+@app.route("/")
+def index():
+    return "Bot is running!"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
